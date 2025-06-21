@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplication Trainer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for focus, as Tailwind's default outline might be overridden by some browser styles */
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.2); /* ring-purple-200 equivalent */
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-300 to-pink-300 flex items-center justify-center p-4 text-gray-800">
+    <div id="app" class="bg-white p-8 rounded-3xl shadow-xl max-w-lg w-full text-center flex flex-col gap-6 transform transition-all duration-300 hover:scale-105">
+        <h1 class="text-4xl font-extrabold text-purple-700 mb-4 tracking-tight">
+            🚀 Multiplication Practice!
+        </h1>
+
+        <!-- Main content area for the game -->
+        <div id="game-content-area" style="display: block;">
+            <div id="currentTableDisplay" class="text-2xl font-bold text-blue-600 mb-4 bg-blue-100 p-3 rounded-lg shadow-md">
+                <!-- Table of X will be updated by JS -->
+            </div>
+
+            <div id="multiplicationProblem" class="text-5xl font-extrabold text-indigo-800 my-6">
+                <!-- X &times; Y = ? will be updated by JS -->
+            </div>
+
+            <form id="multiplicationForm" class="flex flex-col items-center gap-4">
+                <input
+                    type="number"
+                    id="userAnswerInput"
+                    value=""
+                    placeholder="Type your answer here"
+                    class="w-full p-4 text-center text-3xl rounded-xl border-4 border-purple-400 focus:border-purple-600 focus:ring-4 focus:ring-purple-200 outline-none transition-all duration-200 shadow-inner"
+                />
+                <button
+                    type="submit"
+                    id="checkAnswerBtn"
+                    class="w-full py-4 text-2xl font-semibold rounded-xl text-white bg-green-500 hover:bg-green-600 active:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                >
+                    Check Answer
+                </button>
+            </form>
+
+            <div id="feedbackMessageDisplay" class="mt-4 p-4 rounded-xl font-bold text-2xl" style="display: none;">
+                <!-- Feedback message will appear here -->
+            </div>
+
+            <button
+                id="nextQuestionBtn"
+                class="mt-4 w-full py-4 text-2xl font-semibold rounded-xl bg-blue-500 text-white hover:bg-blue-600 active:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                style="display: none;"
+            >
+                Next Question 👉
+            </button>
+
+            <button
+                id="nextTableBtn"
+                class="mt-4 w-full py-4 text-2xl font-semibold rounded-xl bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                style="display: none;"
+            >
+                Next Table! ➡️
+            </button>
+        </div>
+
+        <!-- Completion screen (hidden initially) -->
+        <div id="completion-screen" class="text-center" style="display: none;">
+            <h2 class="text-4xl font-extrabold text-green-700 mb-6">
+                🎉 Congratulations! You did it! 🎉
+            </h2>
+            <p class="text-2xl text-gray-700 mb-8">
+                You've completed all the multiplication tables from 2 to <span id="maxTableDisplay">20</span>!
+                You're a multiplication master!
+            </p>
+            <button
+                id="resetBtn"
+                class="py-4 px-8 text-2xl font-semibold rounded-xl bg-purple-500 text-white hover:bg-purple-600 active:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            >
+                Start Over
+            </button>
+        </div>
+
+        <div class="text-xl text-gray-600 mt-6 font-medium">
+            Score: <span id="score">0</span> / <span id="totalAttempts">0</span>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let currentTable = 2;
+        let currentMultiplier = 1;
+        let userAnswer = '';
+        let feedbackMessage = '';
+        let isCorrect = null;
+        let score = 0;
+        let totalAttempts = 0;
+        let isInputDisabled = false;
+        const maxTable = 20;
+        const maxMultiplier = 12;
+
+        // DOM element references (get them once at the start)
+        const gameContentArea = document.getElementById('game-content-area');
+        const completionScreen = document.getElementById('completion-screen');
+        const currentTableDisplay = document.getElementById('currentTableDisplay');
+        const multiplicationProblem = document.getElementById('multiplicationProblem');
+        const userAnswerInput = document.getElementById('userAnswerInput');
+        const checkAnswerBtn = document.getElementById('checkAnswerBtn');
+        const feedbackMessageDisplay = document.getElementById('feedbackMessageDisplay');
+        const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+        const nextTableBtn = document.getElementById('nextTableBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const scoreSpan = document.getElementById('score');
+        const totalAttemptsSpan = document.getElementById('totalAttempts');
+        const maxTableDisplay = document.getElementById('maxTableDisplay');
+        const multiplicationForm = document.getElementById('multiplicationForm');
+
+
+        /**
+         * Updates the UI elements based on the current state.
+         */
+        function render() {
+            scoreSpan.textContent = score;
+            totalAttemptsSpan.textContent = totalAttempts;
+            maxTableDisplay.textContent = maxTable; // Update max table in completion screen
+
+            if (currentTable <= maxTable) {
+                // Show game content, hide completion screen
+                gameContentArea.style.display = 'block';
+                completionScreen.style.display = 'none';
+
+                currentTableDisplay.textContent = `Table of ${currentTable}`;
+                multiplicationProblem.textContent = `${currentTable} × ${currentMultiplier} = ?`;
+                userAnswerInput.value = userAnswer;
+                userAnswerInput.disabled = isInputDisabled;
+                checkAnswerBtn.disabled = isInputDisabled;
+
+                // Update feedback message visibility and content
+                if (feedbackMessage) {
+                    feedbackMessageDisplay.style.display = 'block';
+                    feedbackMessageDisplay.textContent = feedbackMessage;
+                    // Reapply green/red classes as style.display doesn't affect them
+                    if (isCorrect === true) {
+                        feedbackMessageDisplay.className = 'mt-4 p-4 rounded-xl font-bold text-2xl bg-green-100 text-green-700 shadow-md';
+                    } else {
+                        feedbackMessageDisplay.className = 'mt-4 p-4 rounded-xl font-bold text-2xl bg-red-100 text-red-700 shadow-md';
+                    }
+                } else {
+                    feedbackMessageDisplay.style.display = 'none';
+                }
+
+                // Show/hide next question/table buttons
+                if (isCorrect === true) {
+                    if (currentMultiplier === maxMultiplier) {
+                        if (currentTable === maxTable) {
+                            // All tables done, no more next buttons in game area
+                            nextQuestionBtn.style.display = 'none';
+                            nextTableBtn.style.display = 'none';
+                        } else {
+                            // Current table done, show next table button
+                            nextQuestionBtn.style.display = 'none';
+                            nextTableBtn.style.display = 'block';
+                        }
+                    } else {
+                        // Current question done, show next question button
+                        nextQuestionBtn.style.display = 'block';
+                        nextTableBtn.style.display = 'none';
+                    }
+                } else {
+                    // Answer is incorrect or not yet answered, hide both next buttons
+                    nextQuestionBtn.style.display = 'none';
+                    nextTableBtn.style.display = 'none';
+                }
+
+                // Programmatically focus the input if it exists and is not disabled
+                if (userAnswerInput && !isInputDisabled) {
+                    userAnswerInput.focus();
+                }
+
+            } else {
+                // All tables completed - show completion screen, hide game content
+                gameContentArea.style.display = 'none';
+                completionScreen.style.display = 'block';
+            }
+        }
+
+        /**
+         * Handles the submission of an answer.
+         * @param {Event} e - The form submission event.
+         */
+        function handleSubmit(e) {
+            e.preventDefault();
+            const parsedAnswer = parseInt(userAnswerInput.value, 10);
+            const correctAnswer = currentTable * currentMultiplier;
+
+            totalAttempts++; // Increment total attempts
+
+            if (parsedAnswer === correctAnswer) {
+                feedbackMessage = '🎉 Correct! Good job!';
+                isCorrect = true;
+                score++; // Increment score for correct answer
+                isInputDisabled = true; // Disable input
+            } else {
+                feedbackMessage = 'Oops! That\'s not quite right. Try again!';
+                isCorrect = false;
+                userAnswer = ''; // Clear internal state
+                userAnswerInput.value = ''; // Clear input field
+                isInputDisabled = false; // Enable input for retry
+            }
+            render(); // Re-render the UI to show feedback and buttons
+        }
+
+        /**
+         * Moves to the next multiplication question within the current table.
+         */
+        function handleNextQuestion() {
+            if (currentMultiplier < maxMultiplier) {
+                currentMultiplier++;
+                resetQuestionState();
+            }
+            render();
+        }
+
+        /**
+         * Moves to the next multiplication table.
+         */
+        function handleNextTable() {
+            if (currentTable < maxTable) {
+                currentTable++;
+                currentMultiplier = 1; // Reset multiplier for the new table
+                resetQuestionState();
+            } else {
+                // All tables are completed - handled by render() if currentTable > maxTable
+                currentTable++; // Increment to exceed maxTable and trigger completion screen
+            }
+            render();
+        }
+
+        /**
+         * Resets the state for a new question or table.
+         */
+        function resetQuestionState() {
+            userAnswer = '';
+            feedbackMessage = '';
+            isCorrect = null;
+            isInputDisabled = false;
+        }
+
+        /**
+         * Resets the entire game.
+         */
+        function handleReset() {
+            currentTable = 2;
+            currentMultiplier = 1;
+            score = 0;
+            totalAttempts = 0;
+            resetQuestionState();
+            render();
+        }
+
+        // Attach event listeners after the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            multiplicationForm.onsubmit = handleSubmit;
+            userAnswerInput.oninput = (e) => { userAnswer = e.target.value; };
+            nextQuestionBtn.onclick = handleNextQuestion;
+            nextTableBtn.onclick = handleNextTable;
+            // The reset button is only visible on the completion screen, so its listener is attached here once.
+            if (resetBtn) { // Check if it exists as it's initially hidden
+                resetBtn.onclick = handleReset;
+            }
+
+            // Initial render to set up the first question
+            render();
+        });
+
+    </script>
+</body>
+</html>
